@@ -1,9 +1,7 @@
 import tensorflow as tf
 from tensorflow import keras
 import numpy as np
-import gc
-gc.disable()
-
+import time
 characters = { #dictionary of all characters and there resulting keycode
 
     "a": 1,
@@ -63,10 +61,10 @@ characters = { #dictionary of all characters and there resulting keycode
     "-": 52
 }
 
-with open('CommunistManifesto.txt', 'r', encoding='utf-8') as f:
+with open('bible.txt', 'r', encoding='utf-8') as f:
     text = f.read()
     f.close()
-
+print(len(text))
 
 def checkline(line):
     succeed = True
@@ -85,22 +83,26 @@ def remove_lines(value):
 
 data = []
 labels = []
-data_length = 150
-NN_fill_length = 50
+train_text = []
+train_labels = []
+
+data_length = 70
+NN_fill_length = 30
+bank_data = 100
 gatherData = True
 
 if gatherData:
-    for x in range(50000):  # for every character in the communist manifesto 72500
-        print(x)
+    for pointer in range(300000):  # for every character in the communist manifesto 72500
+        print(pointer)
         fail = False
         binary_data_str = []  # stores the binary data of an input
         following_binary_str = []  # stores the binary data of the following output
 
-        textPiece = text[0:data_length] # takes a piece from the text
+        textPiece = text[pointer:pointer+data_length] # takes a piece from the text
         textPiece = remove_lines(textPiece) # removes lines from that piece for ease of use
         if True:  # checks that the line doesn't cut through a word, optional textPiece[0] == " "
             textPiece = textPiece.lower()
-            followingLine = text[data_length+1]  # following output letter
+            followingLine = text[pointer+data_length:pointer+data_length+1]  # following output letter
 
             if checkline(textPiece):
                 for ch in textPiece:
@@ -117,33 +119,38 @@ if gatherData:
                 fail = True
 
             if fail == False and binary_data_str not in data and len(binary_data_str) == data_length*6:
-                #data.append(binary_data_str)
-                #labels.append(binary_label_str)
-                pass
-        text = text[1:]
+                data.append(binary_data_str)
+                labels.append(binary_label_str)
+                if len(data) == bank_data:  # bank the data for effiency
+                    train_text.extend(data.copy())
+                    train_labels.extend(labels.copy())
+                    data = []
+                    labels = []
 
-
-train_text = np.array(data)
-train_labels = np.array(labels)
+train_text = np.array(train_text)
+train_labels = np.array(train_labels)
 
 print(len(train_text))
 print(len(train_labels))
-
+print(len(data))
+print(len(labels))
 train_text = np.array(train_text, dtype=float)
 train_labels = np.array(train_labels, dtype=float)
 
 
 model = keras.Sequential([
     keras.layers.Dense(data_length*6),
-    keras.layers.Dense((data_length*6)*0.8, activation="relu"),
-    keras.layers.Dense((data_length*6)*0.6, activation="relu"),
-    keras.layers.Dense((data_length*6)*0.4, activation="relu"),
-    keras.layers.Dense((data_length*6)*0.2, activation="relu"),
-    keras.layers.Dense((data_length*6)*0.1, activation="relu"),
-    keras.layers.Dense(53, activation="sigmoid"),
+    keras.layers.Dense(400, activation="relu"),
+    keras.layers.Dense(300, activation="relu"),
+    keras.layers.Dense(250, activation="relu"),
+    keras.layers.Dense(200, activation="relu"),
+    keras.layers.Dense(100, activation="relu"),
+    keras.layers.Dense(75, activation="relu"),
+    keras.layers.Dense(53, activation="sigmoid")
     ])
 model.compile(optimizer="Adamax", loss="sparse_categorical_crossentropy", metrics=["accuracy"])
-model.fit(train_text, train_labels, epochs=50)
+model.fit(train_text, train_labels, epochs=7, use_multiprocessing=False)
+
 
 while True:
     Full_binary_query_list = []
@@ -208,12 +215,8 @@ while True:
         message.append({i for i in characters if characters[i] == num})
     message = message[0:-2]
     for x in message:
-
         for y in x:
             print(y)
-
-
-
 
 
 
