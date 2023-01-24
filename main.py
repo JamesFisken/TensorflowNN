@@ -1,11 +1,8 @@
 import tensorflow as tf
 from tensorflow import keras
-import tensorflow_datasets as tfds
 import numpy as np
-import matplotlib.pyplot as plt
-import ast
-import random
-import pandas as pd
+import gc
+gc.disable()
 
 characters = { #dictionary of all characters and there resulting keycode
 
@@ -87,106 +84,66 @@ def remove_lines(value):
     return ' '.join(value.splitlines())
 
 data = []
-label_data = []
-save_num_list = []
-data_length = 100
-gatherData = False
-chunks = 9
-chunkSize = 3100
+labels = []
+data_length = 150
+NN_fill_length = 50
+gatherData = True
+
 if gatherData:
-    for x in range(30000):  # for every character in the communist manifesto 72500
+    for x in range(50000):  # for every character in the communist manifesto 72500
         print(x)
         fail = False
-        binary_str = []  # stores the binary data of an input
+        binary_data_str = []  # stores the binary data of an input
         following_binary_str = []  # stores the binary data of the following output
 
-        textpointer = x
-        textPiece = text[textpointer:textpointer+data_length] # takes a piece from the text
+        textPiece = text[0:data_length] # takes a piece from the text
         textPiece = remove_lines(textPiece) # removes lines from that piece for ease of use
         if True:  # checks that the line doesn't cut through a word, optional textPiece[0] == " "
             textPiece = textPiece.lower()
-            followingLine = text[textpointer+data_length:textpointer+data_length+1]  # following output letter
+            followingLine = text[data_length+1]  # following output letter
 
             if checkline(textPiece):
                 for ch in textPiece:
                     binary_num = converttobinary(characters[ch])  # converts each individual ch to binary
                     for n in binary_num:
-                        binary_str.append(n)
+                        binary_data_str.append(n)
             else:
                 fail = True
 
             if checkline(followingLine):
                 for ch in followingLine:
-                    save_num = characters[ch] # use for predicting a single character
+                    binary_label_str = characters[ch] # use for predicting a single character
             else:
                 fail = True
 
-            if fail == False and binary_str not in data and len(binary_str) == data_length*6:
-                data.append(binary_str)
-                save_num_list.append(save_num)
-
-    with open('Dataset.txt', 'w', encoding='utf-8') as f:
-        f.write(str(data))
-        f.close()
-    with open('Datalabel.txt', 'w', encoding='utf-8') as f:
-        f.write(str(save_num_list))
-        f.close()
-    print(len(data))
-    exit()
-
-train_images = []
-train_labels = []
-with open('Dataset.txt', 'r', encoding='utf-8') as f:
-    for x in range(chunks):
-        lines = [i + (chunkSize * x) for i in range(chunkSize)]
-
-        for pos, l_num in enumerate(f):
-            # check if the line number is specified in the lines to read array
-            if pos in lines:
-                # print the required line number
-                linedata = ast.literal_eval(l_num)
-        train_images += linedata
-    f.close()
-
-with open('Datalabel.txt', 'r', encoding='utf-8') as f:
-    for x in range(chunks):
-        lines = [i + (chunkSize * x) for i in range(chunkSize)]
-
-        for pos, l_num in enumerate(f):
-            # check if the line number is specified in the lines to read array
-            if pos in lines:
-                # print the required line number
-                linedata = ast.literal_eval(l_num)
-        train_labels += linedata
-    f.close()
+            if fail == False and binary_data_str not in data and len(binary_data_str) == data_length*6:
+                #data.append(binary_data_str)
+                #labels.append(binary_label_str)
+                pass
+        text = text[1:]
 
 
-print(len(train_images))
+train_text = np.array(data)
+train_labels = np.array(labels)
+
+print(len(train_text))
 print(len(train_labels))
 
-train_images = np.array(train_images)
-train_labels = np.array(train_labels)
-
-train_images = np.array(train_images, dtype=float)
+train_text = np.array(train_text, dtype=float)
 train_labels = np.array(train_labels, dtype=float)
 
 
 model = keras.Sequential([
     keras.layers.Dense(data_length*6),
-    keras.layers.Dense(300, activation="relu"),
-    keras.layers.Dense(275, activation="relu"),
-    keras.layers.Dense(225, activation="relu"),
-    keras.layers.Dense(128, activation="relu"),
-    keras.layers.Dense(90, activation="relu"),
-    keras.layers.Dense(75, activation="relu"),
-    keras.layers.Dense(53, activation="sigmoid")
+    keras.layers.Dense((data_length*6)*0.8, activation="relu"),
+    keras.layers.Dense((data_length*6)*0.6, activation="relu"),
+    keras.layers.Dense((data_length*6)*0.4, activation="relu"),
+    keras.layers.Dense((data_length*6)*0.2, activation="relu"),
+    keras.layers.Dense((data_length*6)*0.1, activation="relu"),
+    keras.layers.Dense(53, activation="sigmoid"),
     ])
 model.compile(optimizer="Adamax", loss="sparse_categorical_crossentropy", metrics=["accuracy"])
-model.fit(train_images, train_labels, epochs=100, use_multiprocessing=False)
-
-#test_loss, test_acc = model.evaluate(test_images, test_labels)
-#print("test accuracy: ", test_acc)
-
+model.fit(train_text, train_labels, epochs=50)
 
 while True:
     Full_binary_query_list = []
@@ -194,6 +151,7 @@ while True:
     message = []
     added_binary_letter = []
     number_query_list = []
+    formatted_message = []
 
     query = str(input("what is your sentence"))
 
@@ -212,7 +170,7 @@ while True:
     binary_query_list = np.array(Full_binary_query_list)
 
 
-    for x in range(50):
+    for x in range(NN_fill_length):
         if x == 0:
             binary_query_list = np.array(Full_binary_query_list, dtype=float)
         else:
@@ -249,10 +207,10 @@ while True:
     for num in number_query_list:
         message.append({i for i in characters if characters[i] == num})
     message = message[0:-2]
-    for list in message:
-        for ch in list:
-            print(ch)
+    for x in message:
 
+        for y in x:
+            print(y)
 
 
 
