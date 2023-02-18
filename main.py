@@ -1,9 +1,11 @@
-
 import os
 import tensorflow as tf
 from tensorflow import keras
+
 import numpy as np
 import time
+from keras.callbacks import ModelCheckpoint
+import random
 
 characters = { #dictionary of all characters and there resulting keycode
 
@@ -64,6 +66,9 @@ characters = { #dictionary of all characters and there resulting keycode
     "-": 52
 }
 
+with open('bible.txt', 'r', encoding='utf-8') as f:
+    text = f.read()
+    f.close()
 
 def checkline(line):
     succeed = True
@@ -80,10 +85,83 @@ def converttobinary(num):
 def remove_lines(value):
     return ' '.join(value.splitlines())
 
+data = []
+labels = []
+train_text = []
+train_labels = []
+
 data_length = 80
 NN_fill_length = 40
+bank_data = 100
+space_noise_range = 0
+gatherData = True
+load = False
+print("gathering data")
 
-model = keras.models.load_model("best_model.hdf5")
+if gatherData:
+    for pointer in range(1500000):  # for every character in the communist manifesto 72500
+        space_noise = "".join([" " for x in range(random.randint(0, space_noise_range))])
+
+        fail = False
+        binary_data_str = []  # stores the binary data of an input
+        following_binary_str = []  # stores the binary data of the following output
+
+        textPiece = space_noise + text[pointer:pointer+data_length-len(space_noise)] # takes a piece from the text
+        textPiece = remove_lines(textPiece) # removes lines from that piece for ease of use
+        if True:  # checks that the line doesn't cut through a word, optional textPiece[0] == " "
+            textPiece = textPiece.lower()
+            followingLine = text[pointer+data_length:pointer+data_length+1]  # following output letter
+
+            if checkline(textPiece):
+                for ch in textPiece:
+                    binary_num = converttobinary(characters[ch])  # converts each individual ch to binary
+                    for n in binary_num:
+                        binary_data_str.append(n)
+            else:
+                fail = True
+
+            if checkline(followingLine):
+                for ch in followingLine:
+                    binary_label_str = characters[ch] # use for predicting a single character
+            else:
+                fail = True
+
+            if fail == False and binary_data_str not in data and len(binary_data_str) == data_length*6:
+                data.append(binary_data_str)
+                labels.append(binary_label_str)
+                if len(data) == bank_data:  # bank the data for effiency
+                    train_text.extend(data.copy())
+                    train_labels.extend(labels.copy())
+                    data = []
+                    labels = []
+
+train_text = np.array(train_text)
+train_labels = np.array(train_labels)
+
+print("starting NN")
+train_text = np.array(train_text, dtype=float)
+train_labels = np.array(train_labels, dtype=float)
+
+if load:
+    model = keras.models.load_model("nn.h5f5")
+
+else:
+    model = keras.Sequential([
+        keras.layers.Dense(data_length*6),
+        keras.layers.Dense(400, activation="relu"),
+        keras.layers.Dense(300, activation="relu"),
+        keras.layers.Dense(150, activation="relu"),
+        keras.layers.Dense(75, activation="relu"),
+        keras.layers.Dense(53, activation="sigmoid")
+        ])
+
+
+model.compile(optimizer="Adamax", loss="sparse_categorical_crossentropy", metrics=["accuracy"])
+checkpoint = ModelCheckpoint("../TensorflowLoad/best_model.hdf5", monitor='loss', verbose=1,
+                             save_best_only=True, mode='auto', period=1)
+model.fit(train_text, train_labels, epochs=100, callbacks=[checkpoint])
+model.save("nn.h5")  # saves model as a file within the project
+
 
 while True:
     Full_binary_query_list = []
